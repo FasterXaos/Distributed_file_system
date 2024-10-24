@@ -1,25 +1,19 @@
-#pragma once
-
 #include <QTcpServer>
 #include <QTcpSocket>
-#include <QFile>
-#include <QObject>
 
 class FileServer : public QTcpServer {
 	Q_OBJECT
 
-	private:
-		QTcpSocket *clientSocket;
-		QFile file;
+public:
+	explicit FileServer(QObject *parent = nullptr);
+	void startServer(qint16 port);
 
-	public:
-		explicit FileServer(QObject *parent = nullptr);
-		void startServer(qint16 port);
+private slots:
+	void incomingConnection(qintptr socketDescriptor);
+	void handleClientConnection();
+	void onClientDisconnected();
 
-	protected:
-		void incomingConnection(qintptr socketDescriptor) override;
-
-	private slots:
-		void handleClientConnection();
-		void onClientDisconnected();
+private:
+	void handleFileUpload(const QByteArray &data);
+	void sendFileToClient(QTcpSocket *clientSocket, const QString &fileName);
 };

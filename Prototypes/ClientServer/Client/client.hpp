@@ -1,23 +1,35 @@
-#pragma once
-
+#include <QWidget>
 #include <QTcpSocket>
 #include <QFile>
-#include <QObject>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QDir>
 
-class FileClient : public QObject {
+class FileClient : public QWidget {
 	Q_OBJECT
 
-	private:
-		QTcpSocket *socket;
-		QFile file;
-		qint64 bytesSent;
+public:
+	explicit FileClient(QWidget *parent = nullptr);
 
-	public:
-		explicit FileClient(QObject *parent = nullptr);
-		void connectToServer(const QString &host, qint16 port);
-		void uploadFile(const QString &filePath);
+private slots:
+	void onConnectButtonClicked();
+	void onDisconnectButtonClicked();
+	void onUploadButtonClicked();
+	void onDownloadButtonClicked();
+	void onConnected();
+	void onDisconnected();
 
-	private slots:
-		void onConnected();
-		void onBytesWritten(qint64 bytes);
+private:
+	void connectToServer(const QString &host, qint16 port);
+	void disconnectFromServer();
+	void uploadFile(const QString &filePath);
+	void downloadFile(const QString &directoryPath);
+
+	QTcpSocket *socket;
+	QFile file;
+	QLineEdit *hostInput;
+	QLineEdit *portInput;
+	QLineEdit *uploadFilePathInput;
+	QLineEdit *downloadDirectoryInput;
+	qint64 bytesSent;
 };
