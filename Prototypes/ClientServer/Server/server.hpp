@@ -1,23 +1,17 @@
-#ifndef SERVER_HPP
-#define SERVER_HPP
+#pragma once
 
-#include <QCoreApplication>
-#include <QDebug>
-#include <QDir>
-#include <QFileInfo>
 #include <QTcpServer>
 #include <QTcpSocket>
 
 namespace SHIZ {
-
-	class Server : public QTcpServer {
+	class FileServer : public QTcpServer {
 		Q_OBJECT
 
 		private:
 			QTcpSocket *clientSocket;
 
 		public:
-			explicit Server(QObject *parent = nullptr);
+			explicit FileServer(QObject *parent = nullptr);
 			void startServer(qint16 port);
 
 		private:
@@ -32,5 +26,3 @@ namespace SHIZ {
 			void onDataReceived();
 	};
 }
-
-#endif // SERVER_HPP

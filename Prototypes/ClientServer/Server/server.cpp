@@ -1,9 +1,13 @@
+#include <QCoreApplication>
+#include <QDebug>
+#include <QDir>
+
 #include "server.hpp"
 
-SHIZ::Server::Server(QObject *parent) : QTcpServer(parent) {}
+SHIZ::FileServer::FileServer(QObject *parent) : QTcpServer(parent) {}
 
 
-void SHIZ::Server::startServer(qint16 port) {
+void SHIZ::FileServer::startServer(qint16 port) {
 	if (this->listen(QHostAddress::Any, port)) {
 		qDebug() << "Сервер запущен, порт" << port;
 	} else {
@@ -12,7 +16,7 @@ void SHIZ::Server::startServer(qint16 port) {
 }
 
 
-void SHIZ::Server::uploadFile(const QByteArray &data) {
+void SHIZ::FileServer::uploadFile(const QByteArray &data) {
 	QString baseDir = QCoreApplication::applicationDirPath();
 	QString relativePath = "received_file.txt";
 	QString fullPath = QDir(baseDir).filePath(relativePath);
@@ -28,7 +32,7 @@ void SHIZ::Server::uploadFile(const QByteArray &data) {
 	qDebug() << "Файл успешно загружен в:" << fullPath;
 }
 
-void SHIZ::Server::sendFile(QTcpSocket *clientSocket, const QString &fileName) {
+void SHIZ::FileServer::sendFile(QTcpSocket *clientSocket, const QString &fileName) {
 	QString baseDir = QCoreApplication::applicationDirPath();
 	QString fullPath = QDir(baseDir).filePath(fileName);
 
@@ -46,24 +50,24 @@ void SHIZ::Server::sendFile(QTcpSocket *clientSocket, const QString &fileName) {
 }
 
 
-void SHIZ::Server::incomingConnection(qintptr socketDescriptor) {
+void SHIZ::FileServer::incomingConnection(qintptr socketDescriptor) {
 	QTcpSocket *clientSocket = new QTcpSocket(this);
 	clientSocket->setSocketDescriptor(socketDescriptor);
 
-	connect(clientSocket, &QTcpSocket::readyRead, this, &SHIZ::Server::onDataReceived);
-	connect(clientSocket, &QTcpSocket::disconnected, this, &SHIZ::Server::onClientDisconnected);
+	connect(clientSocket, &QTcpSocket::readyRead, this, &SHIZ::FileServer::onDataReceived);
+	connect(clientSocket, &QTcpSocket::disconnected, this, &SHIZ::FileServer::onClientDisconnected);
 
 	qDebug() << "Клиент подключен";
 }
 
 
-void SHIZ::Server::onClientDisconnected() {
+void SHIZ::FileServer::onClientDisconnected() {
 	QTcpSocket *clientSocket = static_cast<QTcpSocket*>(sender());
 	qDebug() << "Клиент отключен";
 	clientSocket->deleteLater();
 }
 
-void SHIZ::Server::onDataReceived() {
+void SHIZ::FileServer::onDataReceived() {
 	QTcpSocket *clientSocket = static_cast<QTcpSocket*>(sender());
 	QByteArray receivedData = clientSocket->readAll();
 

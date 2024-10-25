@@ -1,32 +1,25 @@
-#ifndef CLIENT_HPP
-#define CLIENT_HPP
+#pragma once
 
-#include <QApplication>
-#include <QDebug>
-#include <QDir>
 #include <QFile>
-#include <QFileDialog>
 #include <QLineEdit>
-#include <QPushButton>
 #include <QTcpSocket>
-#include <QVBoxLayout>
-#include <QWidget>
 
 namespace SHIZ {
-	class Client : public QWidget {
+	class FileClient : public QWidget {
 		Q_OBJECT
 
 		private:
 			qint64 bytesSent;
-			QLineEdit *downloadDirectoryInput;
 			QFile file;
+
+			QLineEdit *downloadDirectoryInput;
 			QLineEdit *hostInput;
 			QLineEdit *portInput;
-			QTcpSocket *socket;
 			QLineEdit *uploadFilePathInput;
+			QTcpSocket *socket;
 
 		public:
-			explicit Client(QWidget *parent = nullptr);
+			explicit FileClient(QWidget *parent = nullptr);
 
 		private:
 			void connectToServer(const QString &host, qint16 port);
@@ -47,5 +40,3 @@ namespace SHIZ {
 			void onUploadButtonClicked();
 	};
 }
-
-#endif // CLIENT_HPP
