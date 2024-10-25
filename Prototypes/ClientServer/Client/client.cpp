@@ -1,16 +1,12 @@
 #include "client.hpp"
-#include <QVBoxLayout>
-#include <QLabel>
-#include <QFileDialog>
-#include <QDebug>
 
-FileClient::FileClient(QWidget *parent)
-	: QWidget(parent), socket(new QTcpSocket(this)), bytesSent(0) {
+SHIZ::Client::Client(QWidget *parent)
+	: QWidget(parent), bytesSent(0), socket(new QTcpSocket(this)) {
 
 	QVBoxLayout *layout = new QVBoxLayout(this);
 
 	hostInput = new QLineEdit(this);
-	hostInput->setPlaceholderText("127.0.0.1");
+	hostInput->setPlaceholderText("127.0.0.1 / 192.168.0.107");
 	layout->addWidget(hostInput);
 
 	portInput = new QLineEdit(this);
@@ -27,46 +23,47 @@ FileClient::FileClient(QWidget *parent)
 
 	QPushButton *connectButton = new QPushButton("Подключиться", this);
 	layout->addWidget(connectButton);
-	connect(connectButton, &QPushButton::clicked, this, &FileClient::onConnectButtonClicked);
+	connect(connectButton, &QPushButton::clicked, this, &Client::onConnectButtonClicked);
 
 	QPushButton *disconnectButton = new QPushButton("Отключиться", this);
 	layout->addWidget(disconnectButton);
-	connect(disconnectButton, &QPushButton::clicked, this, &FileClient::onDisconnectButtonClicked);
+	connect(disconnectButton, &QPushButton::clicked, this, &Client::onDisconnectButtonClicked);
 
 	QPushButton *uploadButton = new QPushButton("Загрузить файл", this);
 	layout->addWidget(uploadButton);
-	connect(uploadButton, &QPushButton::clicked, this, &FileClient::onUploadButtonClicked);
+	connect(uploadButton, &QPushButton::clicked, this, &Client::onUploadButtonClicked);
 
-	// Кнопка для скачивания файла
 	QPushButton *downloadButton = new QPushButton("Скачать файл", this);
 	layout->addWidget(downloadButton);
-	connect(downloadButton, &QPushButton::clicked, this, &FileClient::onDownloadButtonClicked);
+	connect(downloadButton, &QPushButton::clicked, this, &Client::onDownloadButtonClicked);
 
 	setLayout(layout);
 
-	connect(socket, &QTcpSocket::connected, this, &FileClient::onConnected);
-	connect(socket, &QTcpSocket::disconnected, this, &FileClient::onDisconnected);
+	connect(socket, &QTcpSocket::connected, this, &Client::onConnected);
+	connect(socket, &QTcpSocket::disconnected, this, &Client::onDisconnected);
 }
 
-void FileClient::onUploadButtonClicked() {
-	QString filePath = uploadFilePathInput->text();
-	if (filePath.isEmpty()) {
-		qDebug() << "Ошибка: путь к файлу для загрузки не указан!";
-		return;
+
+void SHIZ::Client::connectToServer(const QString &host, qint16 port) {
+	if (!socket->isOpen()) {
+		socket->connectToHost(host, port);
+		if (!socket->waitForConnected(3000)) {
+			qDebug() << "Не удалось подключиться к серверу:";
+		}
+	} else {
+		qDebug() << "Уже подключено!";
 	}
-	uploadFile(filePath);
 }
 
-void FileClient::onDownloadButtonClicked() {
-	QString directoryPath = downloadDirectoryInput->text();
-	if (directoryPath.isEmpty()) {
-		qDebug() << "Ошибка: директория для скачивания не указана!";
-		return;
+void SHIZ::Client::disconnectFromServer() {
+	if (socket->isOpen()) {
+		socket->disconnectFromHost();
+	} else {
+		qDebug() << "Соединение уже разорвано!";
 	}
-	downloadFile(directoryPath);
 }
 
-void FileClient::downloadFile(const QString &directoryPath) {
+void SHIZ::Client::downloadFile(const QString &directoryPath) {
 	if (!socket->isOpen()) {
 		qDebug() << "Ошибка: нет соединения с сервером!";
 		return;
@@ -91,34 +88,11 @@ void FileClient::downloadFile(const QString &directoryPath) {
 		file.close();
 		qDebug() << "Файл успешно скачан в:" << fullPath;
 
-		// Отключаем слот, чтобы избежать повторного вызова
 		disconnect(socket, &QTcpSocket::readyRead, nullptr, nullptr);
 	});
 }
 
-void FileClient::connectToServer(const QString &host, qint16 port) {
-	if (!socket->isOpen()) {
-		socket->connectToHost(host, port);
-		if (!socket->waitForConnected(3000)) {
-			qDebug() << "Не удалось подключиться к серверу!";
-		} else {
-			qDebug() << "Подключено к серверу!";
-		}
-	} else {
-		qDebug() << "Уже подключено!";
-	}
-}
-
-void FileClient::disconnectFromServer() {
-	if (socket->isOpen()) {
-		socket->disconnectFromHost();
-		qDebug() << "Отключено от сервера!";
-	} else {
-		qDebug() << "Соединение уже разорвано!";
-	}
-}
-
-void FileClient::uploadFile(const QString &filePath) {
+void SHIZ::Client::uploadFile(const QString &filePath) {
 	if (!socket->isOpen()) {
 		qDebug() << "Ошибка: нет соединения с сервером!";
 		return;
@@ -131,7 +105,7 @@ void FileClient::uploadFile(const QString &filePath) {
 	}
 
 	QByteArray fileData = file.readAll();
-	file.close(); // Закрыть файл после чтения
+	file.close();
 
 	qint64 bytesWritten = socket->write(fileData);
 	if (bytesWritten == -1) {
@@ -140,26 +114,44 @@ void FileClient::uploadFile(const QString &filePath) {
 	}
 	qDebug() << "Отправка файла начата. Отправлено байт:" << bytesWritten;
 
-	// Убедитесь, что все данные были отправлены
 	if (!socket->waitForBytesWritten(3000)) {
 		qDebug() << "Ошибка: не все данные были отправлены!" << socket->errorString();
 	}
 }
 
-void FileClient::onConnected() {
+
+void SHIZ::Client::onConnected() {
 	qDebug() << "Соединение с сервером установлено!";
 }
 
-void FileClient::onDisconnected() {
-	qDebug() << "Соединение разорвано!";
-}
-
-void FileClient::onConnectButtonClicked() {
+void SHIZ::Client::onConnectButtonClicked() {
 	QString host = hostInput->text();
 	qint16 port = portInput->text().toInt();
 	connectToServer(host, port);
 }
 
-void FileClient::onDisconnectButtonClicked() {
+void SHIZ::Client::onDisconnected() {
+	qDebug() << "Соединение разорвано!";
+}
+
+void SHIZ::Client::onDisconnectButtonClicked() {
 	disconnectFromServer();
+}
+
+void SHIZ::Client::onDownloadButtonClicked() {
+	QString directoryPath = downloadDirectoryInput->text();
+	if (directoryPath.isEmpty()) {
+		qDebug() << "Ошибка: директория для скачивания не указана!";
+		return;
+	}
+	downloadFile(directoryPath);
+}
+
+void SHIZ::Client::onUploadButtonClicked() {
+	QString filePath = uploadFilePathInput->text();
+	if (filePath.isEmpty()) {
+		qDebug() << "Ошибка: путь к файлу для загрузки не указан!";
+		return;
+	}
+	uploadFile(filePath);
 }
