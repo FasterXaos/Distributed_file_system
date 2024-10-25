@@ -1,25 +1,36 @@
-#pragma once
+#ifndef SERVER_HPP
+#define SERVER_HPP
 
+#include <QCoreApplication>
+#include <QDebug>
+#include <QDir>
+#include <QFileInfo>
 #include <QTcpServer>
 #include <QTcpSocket>
-#include <QFile>
-#include <QObject>
 
-class FileServer : public QTcpServer {
-	Q_OBJECT
+namespace SHIZ {
 
-	private:
-		QTcpSocket *clientSocket;
-		QFile file;
+	class Server : public QTcpServer {
+		Q_OBJECT
 
-	public:
-		explicit FileServer(QObject *parent = nullptr);
-		void startServer(qint16 port);
+		private:
+			QTcpSocket *clientSocket;
 
-	protected:
-		void incomingConnection(qintptr socketDescriptor) override;
+		public:
+			explicit Server(QObject *parent = nullptr);
+			void startServer(qint16 port);
 
-	private slots:
-		void handleClientConnection();
-		void onClientDisconnected();
-};
+		private:
+			void uploadFile(const QByteArray &data);
+			void sendFile(QTcpSocket *clientSocket, const QString &fileName);
+
+		protected:
+			void incomingConnection(qintptr socketDescriptor) override;
+
+		private slots:
+			void onClientDisconnected();
+			void onDataReceived();
+	};
+}
+
+#endif // SERVER_HPP

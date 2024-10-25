@@ -1,23 +1,51 @@
-#pragma once
+#ifndef CLIENT_HPP
+#define CLIENT_HPP
 
-#include <QTcpSocket>
+#include <QApplication>
+#include <QDebug>
+#include <QDir>
 #include <QFile>
-#include <QObject>
+#include <QFileDialog>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QTcpSocket>
+#include <QVBoxLayout>
+#include <QWidget>
 
-class FileClient : public QObject {
-	Q_OBJECT
+namespace SHIZ {
+	class Client : public QWidget {
+		Q_OBJECT
 
-	private:
-		QTcpSocket *socket;
-		QFile file;
-		qint64 bytesSent;
+		private:
+			qint64 bytesSent;
+			QLineEdit *downloadDirectoryInput;
+			QFile file;
+			QLineEdit *hostInput;
+			QLineEdit *portInput;
+			QTcpSocket *socket;
+			QLineEdit *uploadFilePathInput;
 
-	public:
-		explicit FileClient(QObject *parent = nullptr);
-		void connectToServer(const QString &host, qint16 port);
-		void uploadFile(const QString &filePath);
+		public:
+			explicit Client(QWidget *parent = nullptr);
 
-	private slots:
-		void onConnected();
-		void onBytesWritten(qint64 bytes);
-};
+		private:
+			void connectToServer(const QString &host, qint16 port);
+			void disconnectFromServer();
+			void downloadFile(const QString &directoryPath);
+			void uploadFile(const QString &filePath);
+
+		signals:
+			void connected();
+			void disconnected();
+
+		private slots:
+			void onConnected();
+			void onConnectButtonClicked();
+			void onDisconnected();
+			void onDisconnectButtonClicked();
+			void onDownloadButtonClicked();
+			void onUploadButtonClicked();
+	};
+}
+
+#endif // CLIENT_HPP
