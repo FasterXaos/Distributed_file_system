@@ -41,12 +41,12 @@ namespace SHIZ {
 	}
 
 
-	void LoginWidget::onLoginResult(bool success) {
+	void LoginWidget::onLoginResult(bool success, const QString& login) {
 		if (success) {
+			emit loginSuccessful(login);
+			logger->log("Login successful: " + login);
 			loginInput->clear();
 			passwordInput->clear();
-			emit loginSuccessful(loginInput->text());
-			logger->log("Login successful: " + loginInput->text());
 		} else {
 			QMessageBox::warning(this, "Login error", "Incorrect username or password.");
 		}

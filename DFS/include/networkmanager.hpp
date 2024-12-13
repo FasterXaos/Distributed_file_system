@@ -36,7 +36,7 @@ namespace SHIZ {
 		void fileDownloadResult(bool success);
 		void fileListReady(const QStringList& files);
 		void fileUploadResult(bool success);
-		void loginResult(bool success);
+		void loginResult(bool success, const QString& login);
 		void operationCancelled();
 		void registrationResult(bool success);
 		void statusMessage(const QString& message);

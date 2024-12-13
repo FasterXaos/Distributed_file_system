@@ -32,7 +32,7 @@ namespace SHIZ{
 			void showRegistrationWindow();
 
 		public slots:
-			void onLoginResult(bool success);
+			void onLoginResult(bool success, const QString& login);
 
 		private slots:
 			void onDisconnectButtonClicked();

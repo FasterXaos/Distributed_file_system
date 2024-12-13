@@ -121,7 +121,7 @@ namespace SHIZ {
 		out << QString(COMMAND_LOGIN) << login << password;
 		tcpSocket->flush();
 
-		if (tcpSocket->waitForReadyRead(30000)) {
+		if (tcpSocket->waitForReadyRead(3000)) {
 			QDataStream in(tcpSocket);
 			QString response;
 			in >> response;
@@ -129,10 +129,10 @@ namespace SHIZ {
 			if (response == RESPONSE_LOGIN_SUCCESS) {
 				return true;
 			} else {
-				QMessageBox::warning(nullptr, "Login error", "Incorrect username or password.");
+				return false;
 			}
 		} else {
-			QMessageBox::warning(nullptr, "Network error", "Failed to connect to the server.");
+			return false;
 		}
 		return false;
 	}
@@ -142,19 +142,16 @@ namespace SHIZ {
 		out << QString(COMMAND_REGISTER) << login << password;
 		tcpSocket->flush();
 
-		if (tcpSocket->waitForReadyRead(30000)) {
+		if (tcpSocket->waitForReadyRead(3000)) {
 			QDataStream in(tcpSocket);
 			QString response;
 			in >> response;
 
 			if (response == RESPONSE_REGISTER_SUCCESS) {
-				emit registrationResult(true);
 				return true;
 			} else {
-				emit registrationResult(false);
+				return false;
 			}
-		} else {
-			emit registrationResult(false);
 		}
 		return false;
 	}
@@ -235,7 +232,7 @@ namespace SHIZ {
 			bool success = response == RESPONSE_UPLOAD_SUCCESS;
 			emit statusMessage(success ? "File uploaded successfully." : "File upload failed.");
 			logger->log(success ? "File uploaded successfully." : "File upload failed.");
-			return success;
+			return true;
 		}
 
 		return false;
@@ -243,10 +240,6 @@ namespace SHIZ {
 
 
 	void NetworkManager::onCancelOperationRequested() {
-		if (tcpSocket && tcpSocket->state() == QAbstractSocket::ConnectedState) {
-			tcpSocket->abort();
-		}
-
 		emit operationCancelled();
 		emit statusMessage("Operation cancelled.");
 	}
@@ -259,7 +252,7 @@ namespace SHIZ {
 
 		tcpSocket->connectToHost(host, port);
 
-		if (tcpSocket->waitForConnected(30000)) {
+		if (tcpSocket->waitForConnected(3000)) {
 			logger->log("Connected to server.");
 			QDataStream out(tcpSocket);
 			out << QString(CLIENT);
@@ -279,7 +272,7 @@ namespace SHIZ {
 		out << QString(COMMAND_DELETE) << fileName;
 		tcpSocket->flush();
 
-		if (tcpSocket->waitForReadyRead(30000)) {
+		if (tcpSocket->waitForReadyRead(3000)) {
 			QDataStream in(tcpSocket);
 			QString response;
 			in >> response;
@@ -320,7 +313,7 @@ namespace SHIZ {
 
 	void NetworkManager::onRequestLogin(const QString& login, const QString& password) {
 		bool success = sendLoginRequest(login, password);
-		emit loginResult(success);
+		emit loginResult(success, login);
 	}
 
 	void NetworkManager::onUploadFileRequested(const QString& filePath, const QString& owner) {

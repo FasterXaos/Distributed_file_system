@@ -82,6 +82,7 @@ namespace SHIZ{
 
 	void Window::onSwitchToMainWindow() {
 		stackedWidget->setCurrentWidget(mainWidget);
+		mainWidget->onRefreshButtonClicked();
 	}
 
 	void Window::onSwitchToRegistrationWindow() {

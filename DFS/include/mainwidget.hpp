@@ -29,13 +29,11 @@ namespace SHIZ{
 
 			bool operationInProgress = false;
 
-			void startOperation();
-			void finishOperation();
-
 		public:
 			MainWidget(Logger* logger, NetworkManager* manager, QWidget* parent = nullptr);
 
 			void setCurrentLogin(const QString& login);
+			void setOperationState(bool isOperationRunning);
 
 		signals:
 			void cancelOperationRequested();
@@ -51,6 +49,7 @@ namespace SHIZ{
 			void onFileListReceived(const QStringList& files);
 			void onFileUploadResult(bool success);
 			void onOperationCancelled();
+			void onRefreshButtonClicked();
 
 		private slots:
 			void onCancelButtonClicked();
@@ -58,7 +57,7 @@ namespace SHIZ{
 			void onDownloadButtonClicked();
 			void onFilterTextChanged(const QString& text);
 			void onLogoutButtonClicked();
-			void onRefreshButtonClicked();
+
 			void onStatusMessageReceived(const QString& message);
 			void onUploadButtonClicked();
 	};

@@ -56,22 +56,13 @@ namespace SHIZ{
 	}
 
 
-	void MainWidget::startOperation() {
-		cancelButton->setEnabled(true);
-		refreshButton->setEnabled(false);
-		uploadButton->setEnabled(false);
-		downloadButton->setEnabled(false);
-		deleteButton->setEnabled(false);
-		logoutButton->setEnabled(false);
-	}
-
-	void MainWidget::finishOperation() {
-		cancelButton->setEnabled(false);
-		refreshButton->setEnabled(true);
-		uploadButton->setEnabled(true);
-		downloadButton->setEnabled(true);
-		deleteButton->setEnabled(true);
-		logoutButton->setEnabled(true);
+	void MainWidget::setOperationState(bool isOperationRunning) {
+		cancelButton->setEnabled(isOperationRunning);
+		refreshButton->setEnabled(!isOperationRunning);
+		uploadButton->setEnabled(!isOperationRunning);
+		downloadButton->setEnabled(!isOperationRunning);
+		deleteButton->setEnabled(!isOperationRunning);
+		logoutButton->setEnabled(!isOperationRunning);
 	}
 
 
@@ -81,7 +72,7 @@ namespace SHIZ{
 
 
 	void MainWidget::onDownloadFileResult(bool success) {
-		finishOperation();
+		setOperationState(false);
 		if (success) {
 			QMessageBox::information(this, "Uploading", "The file has been uploaded successfully.");
 		} else {
@@ -90,7 +81,7 @@ namespace SHIZ{
 	}
 
 	void MainWidget::onFileDeletionResult(bool success) {
-		finishOperation();
+		setOperationState(false);
 		if (success) {
 			QMessageBox::information(this, "Delete", "File deleted successfully.");
 			onRefreshButtonClicked();
@@ -100,7 +91,6 @@ namespace SHIZ{
 	}
 
 	void MainWidget::onFileListReceived(const QStringList& files) {
-		finishOperation();
 		fileTableWidget->setRowCount(files.size());
 		for (int i = 0; i < files.size(); ++i) {
 			QStringList fileInfo = files[i].split("|");
@@ -119,7 +109,7 @@ namespace SHIZ{
 	}
 
 	void MainWidget::onFileUploadResult(bool success) {
-		finishOperation();
+		setOperationState(false);
 		if (success) {
 			QMessageBox::information(this, "Upload", "File uploaded successfully.");
 			onRefreshButtonClicked();
@@ -129,13 +119,13 @@ namespace SHIZ{
 	}
 
 	void MainWidget::onOperationCancelled() {
-		finishOperation();
+		setOperationState(false);
 	}
 
 
 	void MainWidget::onCancelButtonClicked() {
 		emit cancelOperationRequested();
-		startOperation();
+		setOperationState(true);
 	}
 
 	void MainWidget::onDeleteButtonClicked() {
@@ -143,7 +133,7 @@ namespace SHIZ{
 		if (selectedRow >= 0) {
 			QString fileName = fileTableWidget->item(selectedRow, 0)->text();
 			emit requestFileDeletion(fileName);
-			startOperation();
+			setOperationState(true);
 		} else {
 			QMessageBox::warning(this, "Delete", "No file selected.");
 		}
@@ -158,7 +148,7 @@ namespace SHIZ{
 			if (!directory.isEmpty()) {
 				QString filePath = directory + "/" + fileName;
 				emit downloadFileRequested(filePath);
-				startOperation();
+				setOperationState(true);
 			}
 		} else {
 			QMessageBox::warning(this, "Download", "No file selected.");
@@ -186,8 +176,12 @@ namespace SHIZ{
 	}
 
 	void MainWidget::onUploadButtonClicked() {
+		setOperationState(true);
 		QString filePath = QFileDialog::getOpenFileName(this, "Select a file to upload");
-		if (filePath.isEmpty()) return;
+		if (filePath.isEmpty()) {
+			setOperationState(false);
+			return;
+		}
 		QString fileName = QFileInfo(filePath).fileName();
 
 		onRefreshButtonClicked();
@@ -195,6 +189,7 @@ namespace SHIZ{
 		for (int i = 0; i < fileTableWidget->rowCount(); ++i) {
 			if (fileTableWidget->item(i, 0)->text() == fileName) {
 				fileExists = true;
+				setOperationState(false);
 				break;
 			}
 		}
@@ -204,11 +199,11 @@ namespace SHIZ{
 												 "A file with this name already exists. Do you want to replace it?",
 												 QMessageBox::Yes | QMessageBox::No);
 			if (response == QMessageBox::No) {
+				setOperationState(false);
 				return;
 			}
 		}
 
 		emit uploadFileRequested(filePath, currentLogin);
-		startOperation();
 	}
 }
