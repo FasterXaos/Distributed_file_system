@@ -1,11 +1,12 @@
 #include <QLabel>
+#include <QMessageBox>
 #include <QVBoxLayout>
 
 #include "loginwidget.hpp"
 
 namespace SHIZ {
-	LoginWidget::LoginWidget(NetworkManager* manager, QWidget* parent)
-		: networkManager(manager), QWidget(parent)
+	LoginWidget::LoginWidget(Logger* logger, NetworkManager* manager, QWidget* parent)
+		: logger(logger), networkManager(manager), QWidget(parent)
 	{
 		QVBoxLayout* layout = new QVBoxLayout(this);
 
@@ -30,22 +31,46 @@ namespace SHIZ {
 		registrationButton = new QPushButton("Register", this);
 		layout->addWidget(registrationButton);
 
+		disconnectButton = new QPushButton("Disconnect", this);
+		layout->addWidget(disconnectButton);
+
 
 		connect(enterButton, &QPushButton::clicked, this, &LoginWidget::onEnterButtonClicked);
 		connect(registrationButton, &QPushButton::clicked, this, &LoginWidget::onRegisterButtonClicked);
+		connect(disconnectButton, &QPushButton::clicked, this, &LoginWidget::onDisconnectButtonClicked);
 	}
 
 
-	void LoginWidget::onEnterButtonClicked(){
-		if (!loginInput->text().isEmpty()) {
-			bool success = networkManager->sendLoginRequest(loginInput->text(), passwordInput->text());
-
-			if (success) {
-				emit loginSuccessful(loginInput->text());
-			} else {
-				qDebug() << "Login failed";
-			}
+	void LoginWidget::onLoginResult(bool success) {
+		if (success) {
+			loginInput->clear();
+			passwordInput->clear();
+			emit loginSuccessful(loginInput->text());
+			logger->log("Login successful: " + loginInput->text());
+		} else {
+			QMessageBox::warning(this, "Login error", "Incorrect username or password.");
 		}
+	}
+
+
+	void LoginWidget::onDisconnectButtonClicked() {
+		emit disconnectRequested();
+		loginInput->clear();
+		passwordInput->clear();
+
+		emit showConnectionWindow();
+	}
+
+	void LoginWidget::onEnterButtonClicked() {
+		QString login = loginInput->text();
+		QString password = passwordInput->text();
+
+		if (login.isEmpty() || password.isEmpty()) {
+			QMessageBox::warning(this, "Login error", "Login and password fields cannot be empty.");
+			return;
+		}
+
+		emit requestLogin(login, password);
 	}
 
 	void LoginWidget::onRegisterButtonClicked(){

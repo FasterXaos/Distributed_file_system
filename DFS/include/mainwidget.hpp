@@ -1,7 +1,9 @@
 #pragma once
 
-#include <QListWidget>
+#include <QTableWidget>
 #include <QPushButton>
+#include <QLabel>
+#include <QLineEdit>
 
 #include "networkmanager.hpp"
 
@@ -13,22 +15,51 @@ namespace SHIZ{
 			NetworkManager* networkManager;
 			QString currentLogin;
 
-			QListWidget* fileListWidget;
+			QLabel* statusLabel;
+			QLineEdit* filterLineEdit;
+			QTableWidget* fileTableWidget;
 			QPushButton* refreshButton;
 			QPushButton* uploadButton;
 			QPushButton* downloadButton;
+			QPushButton* deleteButton;
+			QPushButton* cancelButton;
+			QPushButton* logoutButton;
+
+			Logger* logger;
+
+			bool operationInProgress = false;
+
+			void startOperation();
+			void finishOperation();
 
 		public:
-			MainWidget(NetworkManager* manager, QWidget* parent = nullptr);
+			MainWidget(Logger* logger, NetworkManager* manager, QWidget* parent = nullptr);
 
 			void setCurrentLogin(const QString& login);
 
 		signals:
+			void cancelOperationRequested();
+			void downloadFileRequested(const QString& filePath);
+			void refreshFileListRequested();
+			void requestFileDeletion(const QString& fileName);
 			void showLoginWindow();
+			void uploadFileRequested(const QString& filePath, const QString& owner);
+
+		public slots:
+			void onDownloadFileResult(bool success);
+			void onFileDeletionResult(bool success);
+			void onFileListReceived(const QStringList& files);
+			void onFileUploadResult(bool success);
+			void onOperationCancelled();
 
 		private slots:
+			void onCancelButtonClicked();
+			void onDeleteButtonClicked();
 			void onDownloadButtonClicked();
+			void onFilterTextChanged(const QString& text);
+			void onLogoutButtonClicked();
 			void onRefreshButtonClicked();
+			void onStatusMessageReceived(const QString& message);
 			void onUploadButtonClicked();
 	};
 }
