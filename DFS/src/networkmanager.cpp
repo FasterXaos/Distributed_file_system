@@ -18,55 +18,9 @@ namespace SHIZ {
 	}
 
 	NetworkManager::~NetworkManager() {
-		disconnectFromHost();
+		onDisconnectRequested();
 	}
 
-
-	bool NetworkManager::connectToHost(const QString& host, quint16 port) {
-		this->host = host;
-		this->port = port;
-		tcpSocket->connectToHost(host, port);
-		if (tcpSocket->waitForConnected(3000)) {
-			logger->log("Connected to main server.");
-			QDataStream out(tcpSocket);
-			out << QString(CLIENT);
-			tcpSocket->flush();
-			return true;
-		}
-		return false;
-	}
-
-	void NetworkManager::disconnectFromHost() {
-		if (tcpSocket->isOpen()) {
-			tcpSocket->disconnectFromHost();
-		}
-		reconnectTimer->stop();
-		logger->log("Disconnected from server and stopped reconnect attempts.");
-	}
-
-	bool NetworkManager::deleteFile(const QString& fileName) {
-		emit statusMessage("Requesting file deletion...");
-		logger->log("Requesting file deletion...");
-
-
-		QDataStream out(tcpSocket);
-		out << QString(COMMAND_DELETE) << fileName;
-		tcpSocket->flush();
-
-		if (tcpSocket->waitForReadyRead(3000)) {
-			QDataStream in(tcpSocket);
-			QString response;
-			in >> response;
-
-			bool success = response == RESPONSE_DELETE_SUCCESS;
-			emit statusMessage(success ? "File deleted successfully." : "File deletion failed.");
-			logger->log(success ? "File deleted successfully." : "File deletion failed.");
-			return success;
-		}
-		emit statusMessage("Server response timed out.");
-		logger->log("Server response timed out.");
-		return false;
-	}
 
 	bool NetworkManager::downloadFile(const QString& filePath) {
 		QString fileName = QFileInfo(filePath).fileName();
@@ -77,7 +31,7 @@ namespace SHIZ {
 		out << QString(COMMAND_DOWNLOAD) << fileName;
 		tcpSocket->flush();
 
-		if (!tcpSocket->waitForReadyRead(3000)) {
+		if (!tcpSocket->waitForReadyRead(30000)) {
 			emit statusMessage("Server did not respond in time for download.");
 			logger->log("Server did not respond in time for download.");
 			return false;
@@ -115,7 +69,7 @@ namespace SHIZ {
 		QByteArray chunk;
 
 		while (totalReceived < fileSize) {
-			if (!tcpSocket->waitForReadyRead(3000)) {
+			if (!tcpSocket->waitForReadyRead(30000)) {
 				emit statusMessage("No response from server during download.");
 				logger->log("No response from server during download.");
 				file.close();
@@ -143,12 +97,12 @@ namespace SHIZ {
 		return true;
 	}
 
-	QStringList NetworkManager::requestFileList(){
+	QStringList NetworkManager::requestFileList() {
 		QDataStream out(tcpSocket);
 		out << QString(COMMAND_GET_FILES);
 		tcpSocket->flush();
 
-		if (tcpSocket->waitForReadyRead(3000)) {
+		if (tcpSocket->waitForReadyRead(30000)) {
 			QDataStream in(tcpSocket);
 			QString response;
 			QStringList fileList;
@@ -167,7 +121,7 @@ namespace SHIZ {
 		out << QString(COMMAND_LOGIN) << login << password;
 		tcpSocket->flush();
 
-		if (tcpSocket->waitForReadyRead(3000)) {
+		if (tcpSocket->waitForReadyRead(30000)) {
 			QDataStream in(tcpSocket);
 			QString response;
 			in >> response;
@@ -188,21 +142,19 @@ namespace SHIZ {
 		out << QString(COMMAND_REGISTER) << login << password;
 		tcpSocket->flush();
 
-		if (tcpSocket->waitForReadyRead(3000)) {
+		if (tcpSocket->waitForReadyRead(30000)) {
 			QDataStream in(tcpSocket);
 			QString response;
 			in >> response;
 
 			if (response == RESPONSE_REGISTER_SUCCESS) {
-				QMessageBox::information(nullptr, "Registration", "Registration was successful.");
+				emit registrationResult(true);
 				return true;
-			} else if (response == RESPONSE_REGISTER_USER_EXISTS) {
-				QMessageBox::warning(nullptr, "Registration error", "A user with this username already exists.");
 			} else {
-				QMessageBox::warning(nullptr, "Registration error", "Such a user already exists or an error has occurred.");
+				emit registrationResult(false);
 			}
 		} else {
-			QMessageBox::warning(nullptr, "Network error", "Failed to connect to the server.");
+			emit registrationResult(false);
 		}
 		return false;
 	}
@@ -229,7 +181,7 @@ namespace SHIZ {
 		out << QString(COMMAND_UPLOAD) << fileName << owner << fileSize;
 		tcpSocket->flush();
 
-		if (!tcpSocket->waitForReadyRead(3000)) {
+		if (!tcpSocket->waitForReadyRead(30000)) {
 			emit statusMessage("Server did not respond in time for upload.");
 			logger->log("Server did not respond in time for upload.");
 			return false;
@@ -261,7 +213,7 @@ namespace SHIZ {
 						QString::number(totalSent) + " of " +
 						QString::number(fileSize) + " bytes sent");
 
-			if (!tcpSocket->waitForReadyRead(3000)) {
+			if (!tcpSocket->waitForReadyRead(30000)) {
 				emit statusMessage("No response from server during upload.");
 				logger->log("No response from server after sending chunk.");
 				return false;
@@ -278,7 +230,7 @@ namespace SHIZ {
 		out << QByteArray();
 		tcpSocket->flush();
 
-		if (tcpSocket->waitForReadyRead(3000)) {
+		if (tcpSocket->waitForReadyRead(30000)) {
 			in >> response;
 			bool success = response == RESPONSE_UPLOAD_SUCCESS;
 			emit statusMessage(success ? "File uploaded successfully." : "File upload failed.");
@@ -287,6 +239,93 @@ namespace SHIZ {
 		}
 
 		return false;
+	}
+
+
+	void NetworkManager::onCancelOperationRequested() {
+		if (tcpSocket && tcpSocket->state() == QAbstractSocket::ConnectedState) {
+			tcpSocket->abort();
+		}
+
+		emit operationCancelled();
+		emit statusMessage("Operation cancelled.");
+	}
+
+	void NetworkManager::onConnectToHost(const QString& host, quint16 port) {
+		this->host = host;
+		this->port = port;
+
+		logger->log(QString("Attempting to connect to host: %1 on port: %2").arg(host).arg(port));
+
+		tcpSocket->connectToHost(host, port);
+
+		if (tcpSocket->waitForConnected(30000)) {
+			logger->log("Connected to server.");
+			QDataStream out(tcpSocket);
+			out << QString(CLIENT);
+			tcpSocket->flush();
+			emit connectionResult(true, "Connected to main server successfully");
+		} else {
+			logger->log("Failed to connect to server.");
+			emit connectionResult(false, "Failed to main server connect");
+		}
+	}
+
+	void NetworkManager::onDeleteFileRequested(const QString& fileName) {
+		emit statusMessage("Requesting file deletion...");
+		logger->log("Requesting file deletion...");
+
+		QDataStream out(tcpSocket);
+		out << QString(COMMAND_DELETE) << fileName;
+		tcpSocket->flush();
+
+		if (tcpSocket->waitForReadyRead(30000)) {
+			QDataStream in(tcpSocket);
+			QString response;
+			in >> response;
+
+			bool success = response == RESPONSE_DELETE_SUCCESS;
+			emit fileDeletionResult(success);
+			emit statusMessage(success ? "File deleted successfully." : "File deletion failed.");
+			logger->log(success ? "File deleted successfully." : "File deletion failed.");
+		} else {
+			emit fileDeletionResult(false);
+			emit statusMessage("Server response timed out.");
+			logger->log("Server response timed out.");
+		}
+	}
+
+	void NetworkManager::onDisconnectRequested() {
+		if (tcpSocket->isOpen()) {
+			tcpSocket->disconnectFromHost();
+		}
+		reconnectTimer->stop();
+		logger->log("Disconnected from server and stopped reconnect attempts.");
+	}
+
+	void NetworkManager::onDownloadFileRequested(const QString& filePath) {
+		bool success = downloadFile(filePath);
+		emit fileDownloadResult(success);
+	}
+
+	void NetworkManager::onRegistrationRequest(const QString& login, const QString& password, const QString& confirmPassword) {
+		bool success = sendRegistrationRequest(login, password, confirmPassword);
+		emit registrationResult(success);
+	}
+
+	void NetworkManager::onRequestFileList() {
+		QStringList files = requestFileList();
+		emit fileListReady(files);
+	}
+
+	void NetworkManager::onRequestLogin(const QString& login, const QString& password) {
+		bool success = sendLoginRequest(login, password);
+		emit loginResult(success);
+	}
+
+	void NetworkManager::onUploadFileRequested(const QString& filePath, const QString& owner) {
+		bool success = uploadFile(filePath, owner);
+		emit fileUploadResult(success);
 	}
 
 
@@ -306,6 +345,6 @@ namespace SHIZ {
 		if (host.isEmpty() || tcpSocket->state() != QTcpSocket::UnconnectedState) {
 			return;
 		}
-		connectToHost(host, port);
+		onConnectToHost(host, port);
 	}
 }

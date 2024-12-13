@@ -41,15 +41,27 @@ namespace SHIZ {
 	}
 
 
+	void LoginWidget::onLoginResult(bool success) {
+		if (success) {
+			loginInput->clear();
+			passwordInput->clear();
+			emit loginSuccessful(loginInput->text());
+			logger->log("Login successful: " + loginInput->text());
+		} else {
+			QMessageBox::warning(this, "Login error", "Incorrect username or password.");
+		}
+	}
+
+
 	void LoginWidget::onDisconnectButtonClicked() {
-		networkManager->disconnectFromHost();
+		emit disconnectRequested();
 		loginInput->clear();
 		passwordInput->clear();
 
 		emit showConnectionWindow();
 	}
 
-	void LoginWidget::onEnterButtonClicked(){
+	void LoginWidget::onEnterButtonClicked() {
 		QString login = loginInput->text();
 		QString password = passwordInput->text();
 
@@ -58,13 +70,7 @@ namespace SHIZ {
 			return;
 		}
 
-		bool success = networkManager->sendLoginRequest(login, password);
-		if (success) {
-			loginInput->clear();
-			passwordInput->clear();
-			emit loginSuccessful(login);
-			logger->log("Login successful: " + login);
-		}
+		emit requestLogin(login, password);
 	}
 
 	void LoginWidget::onRegisterButtonClicked(){

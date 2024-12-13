@@ -40,6 +40,10 @@ namespace SHIZ{
 		deleteButton = new QPushButton("Delete File", this);
 		layout->addWidget(deleteButton);
 
+		cancelButton = new QPushButton("Cancel", this);
+		cancelButton->setEnabled(false);
+		layout->addWidget(cancelButton);
+
 		logoutButton = new QPushButton("Logout", this);
 		layout->addWidget(logoutButton);
 
@@ -47,7 +51,27 @@ namespace SHIZ{
 		connect(uploadButton, &QPushButton::clicked, this, &MainWidget::onUploadButtonClicked);
 		connect(downloadButton, &QPushButton::clicked, this, &MainWidget::onDownloadButtonClicked);
 		connect(deleteButton, &QPushButton::clicked, this, &MainWidget::onDeleteButtonClicked);
+		connect(cancelButton, &QPushButton::clicked, this, &MainWidget::onCancelButtonClicked);
 		connect(logoutButton, &QPushButton::clicked, this, &MainWidget::onLogoutButtonClicked);
+	}
+
+
+	void MainWidget::startOperation() {
+		cancelButton->setEnabled(true);
+		refreshButton->setEnabled(false);
+		uploadButton->setEnabled(false);
+		downloadButton->setEnabled(false);
+		deleteButton->setEnabled(false);
+		logoutButton->setEnabled(false);
+	}
+
+	void MainWidget::finishOperation() {
+		cancelButton->setEnabled(false);
+		refreshButton->setEnabled(true);
+		uploadButton->setEnabled(true);
+		downloadButton->setEnabled(true);
+		deleteButton->setEnabled(true);
+		logoutButton->setEnabled(true);
 	}
 
 
@@ -56,58 +80,27 @@ namespace SHIZ{
 	}
 
 
-	void MainWidget::onDeleteButtonClicked() {
-		int selectedRow = fileTableWidget->currentRow();
-		if (selectedRow >= 0) {
-			QString fileName = fileTableWidget->item(selectedRow, 0)->text();
-			bool success = networkManager->deleteFile(fileName);
-			if (success) {
-				QMessageBox::information(this, "Delete", "File deleted successfully.");
-				onRefreshButtonClicked();
-			} else {
-				QMessageBox::warning(this, "Delete", "File deletion failed.");
-			}
+	void MainWidget::onDownloadFileResult(bool success) {
+		finishOperation();
+		if (success) {
+			QMessageBox::information(this, "Uploading", "The file has been uploaded successfully.");
 		} else {
-			QMessageBox::warning(this, "Delete", "No file selected.");
+			QMessageBox::warning(this, "Download", "The file could not be downloaded.");
 		}
 	}
 
-	void MainWidget::onDownloadButtonClicked(){
-		int selectedRow = fileTableWidget->currentRow();
-		if (selectedRow >= 0) {
-			QString fileName = fileTableWidget->item(selectedRow, 0)->text();
-			QString directory = QFileDialog::getExistingDirectory(this, "Select Download Folder");
-
-			if (!directory.isEmpty()) {
-				QString filePath = directory + "/" + fileName;
-				bool success = networkManager->downloadFile(filePath);
-				if (success) {
-					QMessageBox::information(this, "Download", "File downloaded successfully.");
-				} else {
-					QMessageBox::warning(this, "Download", "File download failed.");
-				}
-			}
+	void MainWidget::onFileDeletionResult(bool success) {
+		finishOperation();
+		if (success) {
+			QMessageBox::information(this, "Delete", "File deleted successfully.");
+			onRefreshButtonClicked();
 		} else {
-			QMessageBox::warning(this, "Download", "No file selected.");
+			QMessageBox::warning(this, "Delete", "File deletion failed.");
 		}
 	}
 
-	void MainWidget::onFilterTextChanged(const QString& text) {
-		for (int i = 0; i < fileTableWidget->rowCount(); ++i) {
-			bool match = fileTableWidget->item(i, 0)->text().contains(text, Qt::CaseInsensitive);
-			fileTableWidget->setRowHidden(i, !match);
-		}
-	}
-
-	void MainWidget::onLogoutButtonClicked() {
-		fileTableWidget->setRowCount(0);
-
-		emit showLoginWindow();
-	}
-
-	void MainWidget::onRefreshButtonClicked(){
-		QStringList files = networkManager->requestFileList();
-
+	void MainWidget::onFileListReceived(const QStringList& files) {
+		finishOperation();
 		fileTableWidget->setRowCount(files.size());
 		for (int i = 0; i < files.size(); ++i) {
 			QStringList fileInfo = files[i].split("|");
@@ -125,11 +118,74 @@ namespace SHIZ{
 		}
 	}
 
+	void MainWidget::onFileUploadResult(bool success) {
+		finishOperation();
+		if (success) {
+			QMessageBox::information(this, "Upload", "File uploaded successfully.");
+			onRefreshButtonClicked();
+		} else {
+			QMessageBox::warning(this, "Upload", "File upload failed.");
+		}
+	}
+
+	void MainWidget::onOperationCancelled() {
+		finishOperation();
+	}
+
+
+	void MainWidget::onCancelButtonClicked() {
+		emit cancelOperationRequested();
+		startOperation();
+	}
+
+	void MainWidget::onDeleteButtonClicked() {
+		int selectedRow = fileTableWidget->currentRow();
+		if (selectedRow >= 0) {
+			QString fileName = fileTableWidget->item(selectedRow, 0)->text();
+			emit requestFileDeletion(fileName);
+			startOperation();
+		} else {
+			QMessageBox::warning(this, "Delete", "No file selected.");
+		}
+	}
+
+	void MainWidget::onDownloadButtonClicked() {
+		int selectedRow = fileTableWidget->currentRow();
+		if (selectedRow >= 0) {
+			QString fileName = fileTableWidget->item(selectedRow, 0)->text();
+			QString directory = QFileDialog::getExistingDirectory(this, "Select the download folder");
+
+			if (!directory.isEmpty()) {
+				QString filePath = directory + "/" + fileName;
+				emit downloadFileRequested(filePath);
+				startOperation();
+			}
+		} else {
+			QMessageBox::warning(this, "Download", "No file selected.");
+		}
+	}
+
+	void MainWidget::onFilterTextChanged(const QString& text) {
+		for (int i = 0; i < fileTableWidget->rowCount(); ++i) {
+			bool match = fileTableWidget->item(i, 0)->text().contains(text, Qt::CaseInsensitive);
+			fileTableWidget->setRowHidden(i, !match);
+		}
+	}
+
+	void MainWidget::onLogoutButtonClicked() {
+		fileTableWidget->setRowCount(0);
+		emit showLoginWindow();
+	}
+
+	void MainWidget::onRefreshButtonClicked() {
+		emit refreshFileListRequested();
+	}
+
 	void MainWidget::onStatusMessageReceived(const QString& message) {
 		statusLabel->setText(message);
 	}
 
-	void MainWidget::onUploadButtonClicked(){
+	void MainWidget::onUploadButtonClicked() {
 		QString filePath = QFileDialog::getOpenFileName(this, "Select a file to upload");
 		if (filePath.isEmpty()) return;
 		QString fileName = QFileInfo(filePath).fileName();
@@ -152,12 +208,7 @@ namespace SHIZ{
 			}
 		}
 
-		bool success = networkManager->uploadFile(filePath, currentLogin);
-		if (success) {
-			QMessageBox::information(this, "Upload", "File uploaded successfully.");
-			onRefreshButtonClicked();
-		} else {
-			QMessageBox::warning(this, "Upload", "File upload failed.");
-		}
+		emit uploadFileRequested(filePath, currentLogin);
+		startOperation();
 	}
 }

@@ -35,22 +35,25 @@ namespace SHIZ {
 		setLayout(layout);
 	}
 
+
+	void ConnectionWidget::onConnectionResult(bool success, const QString& message) {
+		logger->log(message);
+
+		if (success) {
+			emit ConnectionSuccessful(hostInput->text(), portInput->text().toUShort());
+		}
+	}
+
+
 	void ConnectionWidget::onEnterButtonClicked() {
 		QString host = hostInput->text();
 		bool ok;
 		quint16 port = portInput->text().toUShort(&ok);
 
 		if (!host.isEmpty() && ok) {
-			bool success = networkManager->connectToHost(host, port);
-
-			if (success) {
-				networkManager->setHostAndPort(host, port);
-				emit ConnectionSuccessful(host, port);
-			} else {
-				logger->log("Failed to connect to server");
-			}
+			emit requestConnection(host, port);
 		} else {
-			logger->log("Invalid host or port");
+			logger->log("Invalid host or port.");
 		}
 	}
 }

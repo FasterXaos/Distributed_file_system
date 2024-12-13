@@ -50,8 +50,21 @@ namespace SHIZ{
 	}
 
 
+	void RegistrationWidget::onRegistrationResult(bool success) {
+		if (success) {
+			loginInput->clear();
+			passwordInput->clear();
+			confirmPasswordInput->clear();
+			emit registrationSuccessful(loginInput->text());
+			logger->log("Registration Successful: " + loginInput->text());
+		} else {
+			QMessageBox::warning(this, "Registration error", "Registration failed.");
+		}
+	}
+
+
 	void RegistrationWidget::onDisconnectButtonClicked() {
-		networkManager->disconnectFromHost();
+		emit disconnectRequested();
 		loginInput->clear();
 		passwordInput->clear();
 		confirmPasswordInput->clear();
@@ -74,14 +87,7 @@ namespace SHIZ{
 			return;
 		}
 
-		bool success = networkManager->sendRegistrationRequest(login, password, confirmPassword);
-		if (success) {
-			loginInput->clear();
-			passwordInput->clear();
-			confirmPasswordInput->clear();
-			emit registrationSuccessful(login);
-			logger->log("Registration Successful: " + login);
-		}
+		emit registrationRequest(login, password, confirmPassword);
 	}
 
 	void RegistrationWidget::onLoginButtonClicked() {

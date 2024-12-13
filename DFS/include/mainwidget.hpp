@@ -22,9 +22,15 @@ namespace SHIZ{
 			QPushButton* uploadButton;
 			QPushButton* downloadButton;
 			QPushButton* deleteButton;
+			QPushButton* cancelButton;
 			QPushButton* logoutButton;
 
 			Logger* logger;
+
+			bool operationInProgress = false;
+
+			void startOperation();
+			void finishOperation();
 
 		public:
 			MainWidget(Logger* logger, NetworkManager* manager, QWidget* parent = nullptr);
@@ -32,9 +38,22 @@ namespace SHIZ{
 			void setCurrentLogin(const QString& login);
 
 		signals:
+			void cancelOperationRequested();
+			void downloadFileRequested(const QString& filePath);
+			void refreshFileListRequested();
+			void requestFileDeletion(const QString& fileName);
 			void showLoginWindow();
+			void uploadFileRequested(const QString& filePath, const QString& owner);
+
+		public slots:
+			void onDownloadFileResult(bool success);
+			void onFileDeletionResult(bool success);
+			void onFileListReceived(const QStringList& files);
+			void onFileUploadResult(bool success);
+			void onOperationCancelled();
 
 		private slots:
+			void onCancelButtonClicked();
 			void onDeleteButtonClicked();
 			void onDownloadButtonClicked();
 			void onFilterTextChanged(const QString& text);

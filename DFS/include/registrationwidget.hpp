@@ -26,9 +26,14 @@ namespace SHIZ{
 			RegistrationWidget(Logger* logger, NetworkManager* manager, QWidget* parent = nullptr);
 
 		signals:
+			void disconnectRequested();
+			void registrationRequest(const QString& login, const QString& password, const QString& confirmPassword);
 			void registrationSuccessful(const QString& login);
 			void showConnectionWindow();
 			void showLoginWindow();
+
+		public slots:
+			void onRegistrationResult(bool success);
 
 		private slots:
 			void onDisconnectButtonClicked();
